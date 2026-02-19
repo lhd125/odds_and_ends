@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종합 선형대수학 플랫폼 v3</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <style>
+        :root {
+            --sidebar-bg: #1a202c; --sidebar-text: #e2e8f0; --active-link: #3182ce;
+            --content-bg: #edf2f7; --primary-btn: #2b6cb0; --text-color: #2d3748;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; height: 100vh; color: var(--text-color); }
+
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); color: var(--sidebar-text); padding: 1.5rem; display: flex; flex-direction: column; overflow-y: auto;}
+        .brand { font-size: 1.3rem; font-weight: bold; margin-bottom: 2rem; color: #63b3ed; text-align: center; padding-bottom: 1rem; border-bottom: 1px solid #4a5568;}
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-item { padding: 12px 15px; cursor: pointer; border-radius: 6px; margin-bottom: 5px; transition: 0.2s; font-size: 0.95rem; }
+        .menu-item:hover { background-color: rgba(255,255,255,0.1); }
+        .menu-item.active { background-color: var(--active-link); color: white; font-weight: bold; }
+
+        .main-content { flex-grow: 1; background-color: var(--content-bg); padding: 2rem; overflow-y: auto; }
+        .content-title { font-size: 1.6rem; color: var(--primary-btn); margin-top: 0; margin-bottom: 1.5rem; border-bottom: 2px solid #cbd5e0; padding-bottom: 10px;}
+
+        .inputs-container { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .matrix-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; min-width: 250px; }
+        .matrix-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-weight: bold; font-size: 1.1rem;}
+        
+        .size-input { width: 45px; padding: 4px; text-align: center; border: 1px solid #cbd5e0; border-radius: 4px; }
+        .matrix-grid { display: grid; gap: 4px; padding: 10px; position: relative; justify-content: center;}
+        .matrix-grid::before, .matrix-grid::after { content: ''; position: absolute; top: 0; bottom: 0; width: 6px; border: 2px solid #2d3748; }
+        .matrix-grid::before { left: 0; border-right: none; }
+        .matrix-grid::after { right: 0; border-left: none; }
+        .matrix-cell { width: 50px; height: 35px; text-align: center; border: 1px solid #e2e8f0; border-radius: 4px; }
+        .matrix-cell:focus { border-color: #3182ce; outline: none; background-color: #ebf8ff;}
+
+        .actions-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+        .custom-expression { display: flex; gap: 10px; margin-bottom: 15px; align-items: center;}
+        .expr-input { flex-grow: 1; padding: 10px; font-size: 1.1rem; border: 2px solid #cbd5e0; border-radius: 6px; font-family: monospace;}
+        
+        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .btn { padding: 10px 16px; border: none; border-radius: 6px; background-color: var(--primary-btn); color: white; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background-color: #2c5282; }
+        .btn-green { background-color: #38a169; } .btn-green:hover { background-color: #276749; }
+
+        .result-section { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: none; }
+        
+        /* 사용된 수학 개념 명시 영역 */
+        .method-desc { background: #e6fffa; border-left: 4px solid #319795; padding: 12px 15px; margin-bottom: 15px; border-radius: 4px; color: #234e52; font-size: 0.95rem; line-height: 1.5;}
+        
+        .katex-output { font-size: 1.4rem; padding: 1.5rem; background: #f7fafc; border-radius: 8px; overflow-x: auto; text-align: center; border: 1px solid #e2e8f0; margin-bottom: 15px;}
+        
+        /* 솔루션 과정 영역 (항상 렌더링되나 내용은 바뀜) */
+        .solution-box { background: #fffaf0; border: 1px solid #feebc8; border-radius: 8px; padding: 15px; }
+        .solution-title { font-weight: bold; color: #dd6b20; margin-top: 0; margin-bottom: 10px; border-bottom: 1px solid #fbd38d; padding-bottom: 8px;}
+        .solution-steps { font-family: 'Courier New', monospace; font-size: 0.95rem; line-height: 1.6; }
+        .no-step-msg { color: #a0aec0; font-style: italic; font-size: 0.9rem; }
+        
+        .error-msg { color: #e53e3e; font-weight: bold; text-align: center; margin-top: 10px;}
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="brand">Linear Algebra Pro</div>
+        <ul class="menu-list">
+            <li class="menu-item active" onclick="switchTab('custom')">📌 다중 행렬 자유 수식 (A, B, C)</li>
+            <li class="menu-item" onclick="switchTab('rref_basis')">📌 가우스 소거 및 기저 (Basis)</li>
+            <li class="menu-item" onclick="switchTab('det_inv')">📌 행렬식과 역행렬</li>
+            <li class="menu-item" onclick="switchTab('eigen')">📌 고윳값과 대각화</li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <h2 id="tab-title" class="content-title">자유 수식 계산기</h2>
+
+        <div id="matrix-container" class="inputs-container"></div>
+        <div id="action-container" class="actions-card"></div>
+
+        <div id="result-area" class="result-section">
+            <h3 style="margin-top:0; margin-bottom:15px;">계산 결과</h3>
+            
+            <div id="method-desc" class="method-desc" style="display:none;"></div>
+            
+            <div id="katex-display" class="katex-output"></div>
+            
+            <div class="solution-box">
+                <div class="solution-title">🧐 풀이 과정 (Solution)</div>
+                <div id="solution-steps" class="solution-steps">
+                    </div>
+            </div>
+            
+            <div id="error-display" class="error-msg"></div>
+        </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.3.0/math.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <script>
+        let currentTab = 'custom';
+
+        const tabConfigs = {
+            'custom': {
+                title: "다중 행렬 자유 수식 (연립 및 복합 연산)",
+                matrices: ['A', 'B', 'C'],
+                renderActions: () => `
+                    <div style="margin-bottom:10px; color:#4a5568; font-size:0.9rem;">
+                        💡 <b>사용법:</b> 아래 칸에 식을 직접 입력하세요. (예: <code>A * B + inv(C)</code>, <code>det(A) * B</code>)
+                    </div>
+                    <div class="custom-expression">
+                        <input type="text" id="custom-expr" class="expr-input" placeholder="예: A * B + C" value="A * B">
+                        <button class="btn btn-green" onclick="evaluateExpression()">계산 실행</button>
+                    </div>
+                `
+            },
+            'rref_basis': {
+                title: "가우스-조르단 소거법 및 기저(Basis) 추출",
+                matrices: ['A'],
+                renderActions: () => `
+                    <div class="btn-group">
+                        <button class="btn" onclick="runRREF('rref')">기약 행 사다리꼴 (RREF)</button>
+                        <button class="btn" onclick="runRREF('col_basis')">열 공간 기저 (Column Basis)</button>
+                    </div>
+                `
+            },
+            'det_inv': {
+                title: "행렬식과 역행렬",
+                matrices: ['A'],
+                renderActions: () => `
+                    <div class="btn-group">
+                        <button class="btn" onclick="calcStandard('det')">행렬식 (Determinant)</button>
+                        <button class="btn" onclick="runInverseSteps()">역행렬 (Inverse) - 풀이포함</button>
+                    </div>
+                `
+            },
+            'eigen': {
+                title: "고윳값 (Eigenvalues) 및 고유벡터",
+                matrices: ['A_square'],
+                renderActions: () => `
+                    <div class="btn-group">
+                        <button class="btn" onclick="calcStandard('eigen')">고윳값 추출 (Eigenvalues)</button>
+                    </div>
+                `
+            }
+        };
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            renderUI();
+        }
+
+        function renderUI() {
+            const config = tabConfigs[currentTab];
+            document.getElementById('tab-title').innerText = config.title;
+            const container = document.getElementById('matrix-container');
+            container.innerHTML = '';
+            config.matrices.forEach(id => {
+                let isSquare = id === 'A_square';
+                let matName = id.replace('_square', '');
+                container.innerHTML += `
+                    <div class="matrix-card">
+                        <div class="matrix-header">
+                            <span>Matrix ${matName}</span>
+                            <div>
+                                <input type="number" id="rows-${matName}" class="size-input" value="3" min="1" max="5" onchange="generateGrid('${matName}', ${isSquare})"> ✕ 
+                                <input type="number" id="cols-${matName}" class="size-input" value="3" min="1" max="5" ${isSquare?'disabled':''} onchange="generateGrid('${matName}', ${isSquare})">
+                            </div>
+                        </div>
+                        <div id="grid-${matName}" class="matrix-grid"></div>
+                    </div>
+                `;
+            });
+            document.getElementById('action-container').innerHTML = config.renderActions();
+            config.matrices.forEach(id => generateGrid(id.replace('_square', ''), id === 'A_square'));
+            hideResult();
+        }
+
+        function generateGrid(id, isSquare) {
+            const rInput = document.getElementById(`rows-${id}`);
+            const cInput = document.getElementById(`cols-${id}`);
+            if(isSquare) cInput.value = rInput.value;
+            const rows = parseInt(rInput.value), cols = parseInt(cInput.value);
+            const grid = document.getElementById(`grid-${id}`);
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${cols}, 50px)`;
+            for(let i=0; i<rows*cols; i++) {
+                let val = (id==='A' && i===0) || (id==='B' && i===1) || (id==='C' && i===2) ? 1 : 0;
+                grid.innerHTML += `<input type="number" class="matrix-cell" value="${val}" onfocus="this.select()">`;
+            }
+        }
+
+        function getMatrix(id) {
+            const el = document.getElementById(`rows-${id}`);
+            if(!el) return null;
+            const r = parseInt(el.value), c = parseInt(document.getElementById(`cols-${id}`).value);
+            const inputs = document.getElementById(`grid-${id}`).getElementsByTagName('input');
+            let mat = [];
+            for(let i=0; i<r; i++) {
+                let row = [];
+                for(let j=0; j<c; j++) row.push(Number(inputs[i*c+j].value) || 0);
+                mat.push(row);
+            }
+            return mat;
+        }
+
+        // 가우스 소거법 코어 엔진 (확장 행렬 지원)
+        function computeRREF(matrix, isAugmented = false) {
+            let m = matrix.map(row => [...row]);
+            let rows = m.length, cols = m[0].length;
+            let lead = 0;
+            let steps = [];
+            let pivotCols = [];
+
+            steps.push(`초기 행렬 구성:\n ${formatTeX(m)}`);
+
+            for (let r = 0; r < rows; r++) {
+                // 역행렬 모드일 때 왼쪽 정방행렬 부분만 피벗으로 탐색
+                let searchCols = isAugmented ? rows : cols; 
+                if (searchCols <= lead) break;
+                
+                let i = r;
+                while (m[i][lead] === 0) {
+                    i++;
+                    if (rows === i) { i = r; lead++; if (searchCols === lead) return { rref: m, steps, pivotCols }; }
+                }
+                
+                if (i !== r) {
+                    let temp = m[i]; m[i] = m[r]; m[r] = temp;
+                    steps.push(`행 교환 ($R_{${r+1}} \\leftrightarrow R_{${i+1}}$):\n ${formatTeX(m)}`);
+                }
+
+                let val = m[r][lead];
+                if(val !== 1) {
+                    for (let j = 0; j < cols; j++) m[r][j] /= val;
+                    steps.push(`Pivot을 1로 만들기 ($R_{${r+1}} \\leftarrow R_{${r+1}} / ${math.round(val,3)}$):\n ${formatTeX(m)}`);
+                }
+                pivotCols.push(lead);
+
+                let changed = false;
+                for (let k = 0; k < rows; k++) {
+                    if (k === r) continue;
+                    val = m[k][lead];
+                    if(val !== 0) {
+                        for (let j = 0; j < cols; j++) m[k][j] -= val * m[r][j];
+                        changed = true;
+                        steps.push(`소거 ($R_{${k+1}} \\leftarrow R_{${k+1}} - (${math.round(val,3)})R_{${r+1}}$):\n ${formatTeX(m)}`);
+                    }
+                }
+                lead++;
+            }
+            return { rref: m, steps, pivotCols };
+        }
+
+        function evaluateExpression() {
+            hideResult();
+            const expr = document.getElementById('custom-expr').value;
+            try {
+                const scope = { A: getMatrix('A'), B: getMatrix('B'), C: getMatrix('C') };
+                const result = math.evaluate(expr, scope);
+                
+                let methodMsg = "사용자가 직접 입력한 수식을 라이브러리가 순차적으로 계산했습니다.";
+                showResult(`\\text{Result} = ${formatTeX(result)}`, methodMsg, null);
+            } catch(e) { showError("수식 오류를 확인해주세요."); }
+        }
+
+        function runRREF(mode) {
+            hideResult();
+            try {
+                const A = getMatrix('A');
+                const { rref, steps, pivotCols } = computeRREF(A);
+                
+                let tex = "";
+                let methodMsg = "<b>가우스-조르단 소거법 (Gauss-Jordan Elimination)</b>을 사용하여 기약 행 사다리꼴을 구했습니다.";
+                let stepHTML = steps.map((s, idx) => `<div style="margin-bottom:15px;"><b>[Step ${idx}]</b><br>${katex.renderToString(s)}</div>`).join('');
+
+                if (mode === 'rref') {
+                    tex = `\\text{RREF}(A) = ${formatTeX(rref)}`;
+                } else if (mode === 'col_basis') {
+                    methodMsg = "가우스 소거법으로 RREF를 구한 뒤, <b>Pivot이 위치한 열(Column)</b>을 기준으로 원본 행렬 A의 열 벡터들을 추출하여 열 공간의 기저를 구했습니다.";
+                    let basis = pivotCols.map(c => A.map(row => row[c]));
+                    let basisTex = basis.map(v => formatTeX(v.map(x=>[x]))).join(', \\; ');
+                    tex = `\\text{Basis of Col}(A) = \\{ ${basisTex} \\}`;
+                }
+                showResult(tex, methodMsg, stepHTML);
+            } catch(e) { showError(e.message); }
+        }
+
+        // 역행렬 단계별 풀이 함수
+        function runInverseSteps() {
+            hideResult();
+            try {
+                const A = getMatrix('A');
+                if (A.length !== A[0].length) throw new Error("역행렬은 정방행렬이어야 합니다.");
+                if (math.det(A) === 0) throw new Error("행렬식이 0이므로 역행렬이 존재하지 않습니다.");
+
+                let n = A.length;
+                // [A | I] 첨가 행렬 만들기
+                let augMat = A.map((row, i) => {
+                    let newRow = [...row];
+                    for (let j = 0; j < n; j++) newRow.push(i === j ? 1 : 0);
+                    return newRow;
+                });
+
+                const { rref, steps } = computeRREF(augMat, true);
+                
+                // 오른쪽 n개 열(역행렬 부분) 추출
+                let invMat = rref.map(row => row.slice(n));
+
+                let methodMsg = "<b>첨가 행렬과 가우스-조르단 소거법</b>을 사용했습니다.<br>원본 행렬 옆에 항등 행렬 $[A | I]$ 을 붙인 후, 행 연산을 통해 왼쪽을 항등 행렬로 만들면 오른쪽이 역행렬 $[I | A^{-1}]$ 이 됩니다.";
+                let stepHTML = steps.map((s, idx) => `<div style="margin-bottom:15px;"><b>[Step ${idx}]</b><br>${katex.renderToString(s)}</div>`).join('');
+
+                showResult(`A^{-1} = ${formatTeX(invMat)}`, methodMsg, stepHTML);
+            } catch(e) { showError(e.message); }
+        }
+
+        function calcStandard(op) {
+            hideResult();
+            try {
+                const A = getMatrix('A');
+                let tex = "", methodMsg = "";
+                if(op === 'det') {
+                    tex = `\\det(A) = ${math.round(math.det(A), 4)}`;
+                    methodMsg = "행렬식 계산에는 여인수 전개(Cofactor Expansion) 및 내부 라이브러리 알고리즘이 사용되었습니다.";
+                } else if(op === 'eigen') {
+                    const eig = math.eigs(A);
+                    tex = `\\text{Eigenvalues } (\\lambda) = [ ${eig.values.map(v => math.round(v,4)).join(', ')} ]`;
+                    methodMsg = "특성 방정식 $\\det(A - \\lambda I) = 0$ 을 풀어 고윳값을 도출했습니다.";
+                }
+                showResult(tex, methodMsg, null);
+            } catch(e) { showError("계산 불가: 정방행렬이 아니거나 특이행렬입니다."); }
+        }
+
+        function formatTeX(mat) {
+            if(typeof mat === 'number') return math.round(mat, 4).toString();
+            if(!Array.isArray(mat)) return mat.toString();
+            if(!Array.isArray(mat[0])) mat = mat.map(v => [v]); 
+            return `\\begin{bmatrix} ${mat.map(row => row.map(v => math.round(v,4)).join(' & ')).join(' \\\\ ')} \\end{bmatrix}`;
+        }
+        
+        function hideResult() { 
+            document.getElementById('result-area').style.display = 'none'; 
+            document.getElementById('error-display').innerText = ''; 
+        }
+        
+        function showResult(tex, methodText, stepsHTML) {
+            // 수학 개념 설명 출력
+            const descDiv = document.getElementById('method-desc');
+            if (methodText) {
+                descDiv.innerHTML = `<strong>💡 사용된 개념:</strong> ${methodText}`;
+                descDiv.style.display = 'block';
+            } else {
+                descDiv.style.display = 'none';
+            }
+
+            // 최종 수식 렌더링
+            katex.render(tex, document.getElementById('katex-display'), { displayMode: true });
+            
+            // 단계별 풀이 출력 제어
+            const stepsDiv = document.getElementById('solution-steps');
+            if (stepsHTML) {
+                stepsDiv.innerHTML = stepsHTML;
+            } else {
+                stepsDiv.innerHTML = `<span class="no-step-msg">이 연산은 단일 공식으로 처리되어 단계별 행 연산 과정이 표시되지 않습니다. (최종 결과만 제공됨)</span>`;
+            }
+            
+            document.getElementById('result-area').style.display = 'block';
+        }
+        function showError(msg) {
+            document.getElementById('error-display').innerText = msg;
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('katex-display').innerHTML = '';
+            document.getElementById('method-desc').style.display = 'none';
+            document.getElementById('solution-steps').innerHTML = '';
+        }
+
+        window.onload = () => { renderUI(); };
+    </script>
+</body>
+</html>
